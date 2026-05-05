@@ -1,0 +1,21 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gemma-server
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+      - ./scripts/pull-on-start.sh:/usr/local/bin/pull-on-start.sh:ro
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e2b-it-q4_K_M}
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_ORIGINS: "chrome-extension://*,moz-extension://*"
+    entrypoint: ["/bin/bash", "/usr/local/bin/pull-on-start.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:11434/api/tags >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
