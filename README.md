@@ -152,8 +152,18 @@ to think about this.
 reach `https://registry.ollama.ai`. The full model is 7.2 GB; on a
 10 Mbit connection that is over an hour.
 
-**Port 11434 is already in use.** Set `OLLAMA_HOST_PORT=11500` (or any
-free port) in `.env`, then update the extension's Base URL accordingly.
+**Port 11434 is already in use.** Most often this is because you already
+have an Ollama daemon running (e.g. installed via the official installer,
+which sets up a systemd service). `start.sh` detects this and falls back
+to just pulling the model through the existing daemon - no second
+`ollama serve` is started. The model is then served by your existing
+daemon at the same `http://localhost:11434`. If that daemon's CORS
+configuration rejects extension origins (rare on Ollama 0.20+), stop
+it (`sudo systemctl stop ollama` on Linux) and re-run `start.sh` so
+this script can own the daemon and apply its own `OLLAMA_ORIGINS`.
+
+If port 11434 is held by a non-ollama service, set `OLLAMA_HOST_PORT=11500`
+(or any free port) in `.env` and update the extension's Base URL to match.
 
 **"failed to pull model".** The tag in `OLLAMA_MODEL` does not exist.
 Check https://ollama.com/library and update `.env`.
