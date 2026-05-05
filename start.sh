@@ -74,6 +74,31 @@ echo "[start] model:  $OLLAMA_MODEL"
 echo "[start] listen: http://$OLLAMA_HOST"
 echo "[start] CORS:   $OLLAMA_ORIGINS"
 
+# Pre-flight: if an ollama daemon is already on this port (typical when
+# the user installed via the official installer, which sets up a systemd
+# service), we cannot bind a second serve. Reuse the existing daemon:
+# do the pull through it and exit cleanly. CORS in that case is governed
+# by the running daemon's OLLAMA_ORIGINS, not ours - Ollama 0.20+ already
+# includes chrome-extension://* and moz-extension://* by default, so
+# this usually Just Works.
+if curl -fs "http://$OLLAMA_HOST/api/version" -o /dev/null 2>&1; then
+  echo "[start] detected an existing ollama daemon on $OLLAMA_HOST"
+  echo "[start] reusing it (will not start a second serve)"
+  echo "[start] pulling model: $OLLAMA_MODEL"
+  if ! ollama pull "$OLLAMA_MODEL"; then
+    echo "[start] ERROR: failed to pull '$OLLAMA_MODEL'" >&2
+    echo "[start] check the tag at https://ollama.com/library" >&2
+    exit 1
+  fi
+  echo "[start] ready. the model is served by the existing ollama daemon."
+  echo "[start] note: CORS is governed by that daemon's OLLAMA_ORIGINS,"
+  echo "        not by this script. Ollama 0.20+ accepts chrome-extension://*"
+  echo "        and moz-extension://* by default. If your extension still gets"
+  echo "        CORS errors, stop the existing daemon (e.g."
+  echo "        'sudo systemctl stop ollama') and re-run start.sh."
+  exit 0
+fi
+
 # Strategy: spawn a temporary 'ollama serve' just long enough to do the
 # pull, then replace this script process with a fresh 'ollama serve' via
 # exec. SIGTERM / SIGINT then go straight to ollama (which handles them
