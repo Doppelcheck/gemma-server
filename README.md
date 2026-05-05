@@ -41,15 +41,25 @@ installed on your host, the model cache lives in `./ollama_data/`, and
 
 ## Windows
 
-Use Option B (Docker Desktop). Or install Ollama via the official
-`OllamaSetup.exe` from https://ollama.com/download, then run, in
-PowerShell:
+Option B (Docker Desktop) is the cleanest path on Windows.
+
+If you would rather install Ollama natively: the `OllamaSetup.exe` from
+https://ollama.com/download installs Ollama as a background service that
+auto-starts. To make it accept requests from the DoppelCheck extension
+you have to set `OLLAMA_ORIGINS` for that service (a plain
+`$env:OLLAMA_ORIGINS = ...` in PowerShell only affects the current
+window, not the service). The simplest way:
 
 ```powershell
-$env:OLLAMA_ORIGINS = "chrome-extension://*,moz-extension://*"
+[Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS",
+  "chrome-extension://*,moz-extension://*", "User")
+# then quit Ollama from the system tray and start it again,
+# or reboot, so the service picks up the new variable.
 ollama pull gemma4:e2b-it-q4_K_M
-ollama serve
 ```
+
+After that the model is reachable at `http://localhost:11434` like on the
+other platforms.
 
 ## What you need
 
@@ -125,13 +135,18 @@ until you remove them (`ollama rm <tag>` for the native install, or
 ## Troubleshooting
 
 **Extension says CORS error.** Confirm the origins env var reached the
-server:
+running server process:
 
-- Native: `echo $OLLAMA_ORIGINS` in the same shell that ran `start.sh`.
+- Native: `start.sh` prints `[start] CORS: chrome-extension://*,moz-extension://*`
+  on startup; if that line is missing or different, your `.env` is
+  overriding it. To inspect the live process on Linux:
+  `cat /proc/$(pgrep -f 'ollama serve' | tail -1)/environ | tr '\0' '\n' | grep ORIGINS`.
 - Docker: `docker compose exec ollama env | grep OLLAMA_ORIGINS`.
 
 The script and compose file both set it to
-`chrome-extension://*,moz-extension://*`.
+`chrome-extension://*,moz-extension://*`. Ollama also includes those
+origins in its built-in defaults as of v0.20, so most users never need
+to think about this.
 
 **Pull is stuck or slow.** Check disk space (`df -h`) and that you can
 reach `https://registry.ollama.ai`. The full model is 7.2 GB; on a
