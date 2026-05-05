@@ -134,19 +134,45 @@ until you remove them (`ollama rm <tag>` for the native install, or
 
 ## Troubleshooting
 
-**Extension says CORS error.** Confirm the origins env var reached the
-running server process:
+**Extension says CORS error (HTTP 403 from the daemon).** Ollama's
+built-in default origins are localhost-only - they do *not* include
+`chrome-extension://*` or `moz-extension://*`. The daemon needs to be
+told about them via `OLLAMA_ORIGINS`. Both `start.sh` and the compose
+file set this; it only fails when something else is serving 11434.
 
-- Native: `start.sh` prints `[start] CORS: chrome-extension://*,moz-extension://*`
-  on startup; if that line is missing or different, your `.env` is
-  overriding it. To inspect the live process on Linux:
-  `cat /proc/$(pgrep -f 'ollama serve' | tail -1)/environ | tr '\0' '\n' | grep ORIGINS`.
-- Docker: `docker compose exec ollama env | grep OLLAMA_ORIGINS`.
+A common cause: the official Ollama installer on Linux sets up a
+systemd service that runs without `OLLAMA_ORIGINS`, and that service
+auto-starts before you ever run `start.sh`. `start.sh` then detects
+the existing daemon and reuses it - inheriting its (insufficient)
+CORS settings. Two fixes:
 
-The script and compose file both set it to
-`chrome-extension://*,moz-extension://*`. Ollama also includes those
-origins in its built-in defaults as of v0.20, so most users never need
-to think about this.
+1. **Take over the port:** stop the systemd-managed daemon and let
+   `start.sh` own it.
+   ```bash
+   sudo systemctl stop ollama
+   sudo systemctl disable ollama   # optional, prevents auto-start
+   ./start.sh
+   ```
+
+2. **Patch the system service:** keep the systemd-managed daemon and
+   give it the right origins.
+   ```bash
+   sudo systemctl edit ollama
+   # add:
+   #   [Service]
+   #   Environment="OLLAMA_ORIGINS=chrome-extension://*,moz-extension://*"
+   sudo systemctl restart ollama
+   ```
+
+Verify either way with a preflight from a fake extension origin:
+
+```bash
+curl -sS -o /dev/null -D - -X OPTIONS http://127.0.0.1:11434/api/chat \
+  -H 'Origin: moz-extension://abc' -H 'Access-Control-Request-Method: POST' \
+  -w 'STATUS=%{http_code}\n' | grep -iE '^(STATUS|access-control-allow-origin)'
+```
+
+Expect `STATUS=204` and `Access-Control-Allow-Origin: moz-extension://abc`.
 
 **Pull is stuck or slow.** Check disk space (`df -h`) and that you can
 reach `https://registry.ollama.ai`. The full model is 7.2 GB; on a

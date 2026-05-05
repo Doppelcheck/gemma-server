@@ -92,10 +92,12 @@ if curl -fs "http://$OLLAMA_HOST/api/version" -o /dev/null 2>&1; then
   fi
   echo "[start] ready. the model is served by the existing ollama daemon."
   echo "[start] note: CORS is governed by that daemon's OLLAMA_ORIGINS,"
-  echo "        not by this script. Ollama 0.20+ accepts chrome-extension://*"
-  echo "        and moz-extension://* by default. If your extension still gets"
-  echo "        CORS errors, stop the existing daemon (e.g."
-  echo "        'sudo systemctl stop ollama') and re-run start.sh."
+  echo "        not by this script. Ollama's built-in defaults do NOT include"
+  echo "        extension origins, so if the daemon was started without"
+  echo "        OLLAMA_ORIGINS (typical for the systemd unit), the DoppelCheck"
+  echo "        extension will get HTTP 403. Either stop the existing daemon"
+  echo "        ('sudo systemctl stop ollama') and re-run start.sh, or add"
+  echo "        OLLAMA_ORIGINS to the systemd unit ('sudo systemctl edit ollama')."
   exit 0
 fi
 
