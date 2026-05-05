@@ -20,7 +20,7 @@ cleanup_temp() {
 trap cleanup_temp EXIT
 
 echo "[pull-on-start] waiting for API on 127.0.0.1:11434"
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if curl -fs http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
     echo "[pull-on-start] API is up"
     break
@@ -43,7 +43,6 @@ fi
 echo "[pull-on-start] stopping temporary serve to hand off"
 kill -TERM "$SERVE_PID" 2>/dev/null || true
 wait "$SERVE_PID" 2>/dev/null || true
-SERVE_PID=""
 trap - EXIT
 
 for _ in $(seq 1 30); do

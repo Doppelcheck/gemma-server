@@ -94,7 +94,7 @@ cleanup_temp() {
 trap cleanup_temp EXIT
 
 echo "[start] waiting for API on http://$OLLAMA_HOST"
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if curl -fs "http://$OLLAMA_HOST/api/tags" >/dev/null 2>&1; then
     echo "[start] API is up"
     break
@@ -119,7 +119,6 @@ fi
 echo "[start] stopping temporary serve to hand off"
 kill -TERM "$SERVE_PID" 2>/dev/null || true
 wait "$SERVE_PID" 2>/dev/null || true
-SERVE_PID=""
 trap - EXIT
 
 # Wait for the port to be released (usually instant).
