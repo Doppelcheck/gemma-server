@@ -74,17 +74,24 @@ echo "[start] model:  $OLLAMA_MODEL"
 echo "[start] listen: http://$OLLAMA_HOST"
 echo "[start] CORS:   $OLLAMA_ORIGINS"
 
-echo "[start] launching 'ollama serve' in background"
-ollama serve &
+# Strategy: spawn a temporary 'ollama serve' just long enough to do the
+# pull, then replace this script process with a fresh 'ollama serve' via
+# exec. SIGTERM / SIGINT then go straight to ollama (which handles them
+# natively), so there is no child-process or trap fragility.
+
+echo "[start] launching temporary 'ollama serve' for the pull step"
+ollama serve >/dev/null 2>&1 &
 SERVE_PID=$!
 
-shutdown() {
-  echo "[start] shutting down (pid $SERVE_PID)"
-  kill -TERM "$SERVE_PID" 2>/dev/null || true
-  wait "$SERVE_PID" 2>/dev/null || true
-  exit 0
+# If the script dies before the exec (errors, Ctrl+C during pull), make
+# sure we do not leave the temporary serve running.
+cleanup_temp() {
+  if [ -n "${SERVE_PID:-}" ] && kill -0 "$SERVE_PID" 2>/dev/null; then
+    kill -TERM "$SERVE_PID" 2>/dev/null || true
+    wait "$SERVE_PID" 2>/dev/null || true
+  fi
 }
-trap shutdown INT TERM
+trap cleanup_temp EXIT
 
 echo "[start] waiting for API on http://$OLLAMA_HOST"
 for i in $(seq 1 60); do
@@ -97,17 +104,34 @@ done
 
 if ! curl -fs "http://$OLLAMA_HOST/api/tags" >/dev/null 2>&1; then
   echo "[start] ERROR: API did not become ready within 60s" >&2
-  kill -TERM "$SERVE_PID" 2>/dev/null || true
   exit 1
 fi
 
-echo "[start] pulling model: $OLLAMA_MODEL (first run downloads ~7 GB)"
+echo "[start] pulling model: $OLLAMA_MODEL"
+echo "        (first run downloads several GB; idempotent on later runs)"
 if ! ollama pull "$OLLAMA_MODEL"; then
   echo "[start] ERROR: failed to pull '$OLLAMA_MODEL'" >&2
   echo "[start] check the tag at https://ollama.com/library" >&2
-  kill -TERM "$SERVE_PID" 2>/dev/null || true
   exit 1
 fi
 
+# Stop the temporary serve so we can rebind the port via exec.
+echo "[start] stopping temporary serve to hand off"
+kill -TERM "$SERVE_PID" 2>/dev/null || true
+wait "$SERVE_PID" 2>/dev/null || true
+SERVE_PID=""
+trap - EXIT
+
+# Wait for the port to be released (usually instant).
+for _ in $(seq 1 30); do
+  if ! curl -fs "http://$OLLAMA_HOST/api/tags" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
 echo "[start] ready. press Ctrl+C to stop."
-wait "$SERVE_PID"
+# Replace this script with ollama serve. From here on, ollama itself is
+# the foreground process, so it receives SIGTERM / SIGINT directly and
+# shuts down cleanly.
+exec ollama serve
