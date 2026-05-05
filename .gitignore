@@ -1,0 +1,4 @@
+.env
+ollama_data/
+*.log
+.DS_Store
