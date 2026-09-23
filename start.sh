@@ -78,9 +78,11 @@ echo "[start] CORS:   $OLLAMA_ORIGINS"
 # the user installed via the official installer, which sets up a systemd
 # service), we cannot bind a second serve. Reuse the existing daemon:
 # do the pull through it and exit cleanly. CORS in that case is governed
-# by the running daemon's OLLAMA_ORIGINS, not ours - Ollama 0.20+ already
-# includes chrome-extension://* and moz-extension://* by default, so
-# this usually Just Works.
+# by the running daemon's OLLAMA_ORIGINS, not ours. Ollama's built-in
+# defaults are localhost-only and do NOT include chrome-extension://* or
+# moz-extension://*, so a daemon started without OLLAMA_ORIGINS (the
+# systemd unit the official installer sets up) answers the extension with
+# HTTP 403. The message printed below tells the user how to fix that.
 if curl -fs "http://$OLLAMA_HOST/api/version" -o /dev/null 2>&1; then
   echo "[start] detected an existing ollama daemon on $OLLAMA_HOST"
   echo "[start] reusing it (will not start a second serve)"

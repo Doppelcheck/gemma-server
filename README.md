@@ -184,7 +184,8 @@ which sets up a systemd service). `start.sh` detects this and falls back
 to just pulling the model through the existing daemon - no second
 `ollama serve` is started. The model is then served by your existing
 daemon at the same `http://localhost:11434`. If that daemon's CORS
-configuration rejects extension origins (rare on Ollama 0.20+), stop
+configuration rejects extension origins (the usual case — Ollama's
+built-in origins are localhost-only), stop
 it (`sudo systemctl stop ollama` on Linux) and re-run `start.sh` so
 this script can own the daemon and apply its own `OLLAMA_ORIGINS`.
 
