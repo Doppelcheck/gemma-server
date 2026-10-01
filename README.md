@@ -63,7 +63,7 @@ other platforms.
 
 ## What you need
 
-- Disk: about 10 GB free (the default model is 7.2 GB on disk).
+- Disk: about 6 GB free (the default model is 3.5 GB on disk).
 - RAM: 8 GB minimum, 16 GB comfortable.
 - Network: the first run downloads the model from the Ollama registry.
 
@@ -109,7 +109,7 @@ cp .env.example .env
 # edit .env and change OLLAMA_MODEL to any tag from
 # https://ollama.com/library, e.g.:
 #   gemma3:1b-it-q4_K_M   (~815 MB, much smaller)
-#   gemma4:e4b-it-q4_K_M  (~9.6 GB, larger)
+#   gemma4:e4b-it-q4_K_M  (~5.5 GB, larger)
 #   llama3:8b
 #   qwen2.5:7b
 ```
@@ -175,8 +175,8 @@ curl -sS -o /dev/null -D - -X OPTIONS http://127.0.0.1:11434/api/chat \
 Expect `STATUS=204` and `Access-Control-Allow-Origin: moz-extension://abc`.
 
 **Pull is stuck or slow.** Check disk space (`df -h`) and that you can
-reach `https://registry.ollama.ai`. The full model is 7.2 GB; on a
-10 Mbit connection that is over an hour.
+reach `https://registry.ollama.ai`. The full model is 3.5 GB; on a
+10 Mbit connection that is around 45 minutes.
 
 **Port 11434 is already in use.** Most often this is because you already
 have an Ollama daemon running (e.g. installed via the official installer,
